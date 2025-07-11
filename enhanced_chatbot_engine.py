@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR"""
+"""
 Enhanced Dell Organizational Operations Chatbot Engine
 Integrates with existing ChromaDB system while adding executive-level capabilities
 and adaptive learning from Q&A pairs
@@ -210,7 +210,7 @@ class EnhancedDellChatbot:
             # Check for similar learned knowledge to enhance response
             learned_context = self._get_learned_context(user_query) if self.learning_system else []
             
-            return {
+            final_result = {
                 "response": executive_response,
                 "confidence_score": confidence_score,
                 "data_sources": len(filtered_df) if filtered_df is not None else 0,
@@ -225,6 +225,12 @@ class EnhancedDellChatbot:
                 "timestamp": datetime.now().isoformat(),
                 "is_learned_response": False
             }
+            
+            # Auto-capture this interaction for learning
+            if self.auto_capture_enabled and self.scheduler:
+                self._auto_capture_interaction(user_query, final_result, filters)
+            
+            return final_result
             
         except Exception as e:
             self.logger.error(f"Error processing executive query: {str(e)}")
