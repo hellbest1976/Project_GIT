@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Enhanced Dell Organizational Operations Chatbot Engine
 Integrates with existing ChromaDB system while adding executive-level capabilities
 and adaptive learning from Q&A pairs
@@ -45,6 +45,17 @@ class EnhancedDellChatbot:
         except Exception as e:
             self.logger.warning(f"⚠️ Could not initialize adaptive learning: {e}")
             self.learning_system = None
+        
+        # Initialize scheduler for automatic chat capture
+        try:
+            from scheduled_data_loader import get_scheduler_instance
+            self.scheduler = get_scheduler_instance()
+            self.auto_capture_enabled = True
+            self.logger.info("✅ Scheduler integration enabled for auto-capture")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not initialize scheduler integration: {e}")
+            self.scheduler = None
+            self.auto_capture_enabled = False
         
         # Load data
         self.main_df = None
