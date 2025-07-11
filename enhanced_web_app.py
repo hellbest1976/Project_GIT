@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR"""
+"""
 Enhanced Dell Organizational Operations Chatbot - Web Interface
 Executive-level analysis integrating with existing ChromaDB system
 """
@@ -382,6 +382,10 @@ class EnhancedDellChatbotApp:
             </div>
             ''', unsafe_allow_html=True)
         
+        # Indicate if this is a learned response
+        if result.get("is_learned_response"):
+            st.info("🧠 **Learned Response:** This answer is based on previously learned knowledge and continuously improves with use.")
+        
         # Key insights
         if result["key_insights"]:
             st.markdown("**💡 Key Executive Insights:**")
@@ -393,6 +397,17 @@ class EnhancedDellChatbotApp:
             st.markdown("**📋 Strategic Recommendations:**")
             for rec in result["recommendations"]:
                 st.markdown(f"• {rec}")
+        
+        # Show learned context if available
+        learned_context = result.get("learned_context", [])
+        if learned_context and not result.get("is_learned_response"):
+            with st.expander("🧠 Related Learned Knowledge"):
+                st.write("Similar questions from learned knowledge:")
+                for idx, context in enumerate(learned_context[:3], 1):
+                    st.write(f"**{idx}.** {context['question']} (Confidence: {context['confidence']:.0%})")
+                    if context['confidence'] > 0.6:
+                        st.write(f"   *Answer excerpt:* {context['answer'][:100]}...")
+                        st.write("---")
         
         # Technical details (expandable)
         with st.expander("🔍 Technical Details"):
