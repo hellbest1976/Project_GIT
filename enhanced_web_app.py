@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Enhanced Dell Organizational Operations Chatbot - Web Interface
 Executive-level analysis integrating with existing ChromaDB system
 """
@@ -157,6 +157,66 @@ class EnhancedDellChatbotApp:
         
         # Settings
         st.sidebar.subheader("⚙️ Settings")
+        
+        # Learning System Management
+        with st.sidebar.expander("🧠 Adaptive Learning"):
+            learning_enabled = status.get("learning_system_enabled", False)
+            learned_pairs = status.get("learned_qa_pairs", 0)
+            
+            st.write(f"**Status:** {'✅ Enabled' if learning_enabled else '❌ Disabled'}")
+            st.write(f"**Learned Q&A Pairs:** {learned_pairs}")
+            
+            if learning_enabled:
+                # JSON Q&A input
+                st.write("**Add Q&A Knowledge:**")
+                qa_json = st.text_area(
+                    "Q&A JSON:",
+                    height=150,
+                    placeholder='{"question": "Your question?", "answer": "Your answer..."}',
+                    help="Paste JSON with Q&A pairs"
+                )
+                
+                if st.button("Learn from JSON") and qa_json.strip():
+                    try:
+                        success = st.session_state.enhanced_chatbot.learn_qa_from_json(qa_json)
+                        if success:
+                            st.success("Successfully learned new Q&A pairs!")
+                            st.session_state.system_status = st.session_state.enhanced_chatbot.get_system_status()
+                            st.rerun()
+                        else:
+                            st.error("Failed to learn Q&A pairs")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                
+                # Quick manual Q&A input
+                with st.form("manual_qa_form"):
+                    st.write("**Quick Q&A Entry:**")
+                    manual_q = st.text_input("Question:", placeholder="What is...")
+                    manual_a = st.text_area("Answer:", height=80, placeholder="The answer is...")
+                    manual_source = st.selectbox("Source:", ["executive_input", "board_meeting", "analysis", "other"])
+                    
+                    if st.form_submit_button("Add Q&A"):
+                        if manual_q.strip() and manual_a.strip():
+                            metadata = {"source": manual_source, "input_method": "web_interface"}
+                            success = st.session_state.enhanced_chatbot.learn_qa_pair(manual_q, manual_a, metadata)
+                            if success:
+                                st.success("Q&A pair learned successfully!")
+                                st.session_state.system_status = st.session_state.enhanced_chatbot.get_system_status()
+                                st.rerun()
+                            else:
+                                st.error("Failed to learn Q&A pair")
+                        else:
+                            st.warning("Please fill both question and answer")
+                
+                # Export learned knowledge
+                if st.button("📤 Export Learned Knowledge"):
+                    exported = st.session_state.enhanced_chatbot.export_learned_knowledge()
+                    st.download_button(
+                        label="Download JSON",
+                        data=exported,
+                        file_name=f"learned_knowledge_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
         
         # API Key management
         with st.sidebar.expander("🔑 OpenAI Configuration"):

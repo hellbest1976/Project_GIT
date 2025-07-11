@@ -1,6 +1,7 @@
 """
 Enhanced Dell Organizational Operations Chatbot Engine
 Integrates with existing ChromaDB system while adding executive-level capabilities
+and adaptive learning from Q&A pairs
 """
 
 import openai
@@ -18,6 +19,7 @@ try:
     from he_query_executor import load_he_chroma_as_dataframe, apply_he_filters
     from question_parser import extract_filters
     from query_executor import load_chroma_as_dataframe, apply_filters
+    from adaptive_learning_system import AdaptiveLearningSystem
 except ImportError as e:
     print(f"Warning: Could not import existing modules: {e}")
 
@@ -35,6 +37,14 @@ class EnhancedDellChatbot:
         # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize adaptive learning system
+        try:
+            self.learning_system = AdaptiveLearningSystem()
+            self.logger.info("✅ Adaptive learning system initialized")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not initialize adaptive learning: {e}")
+            self.learning_system = None
         
         # Load data
         self.main_df = None
@@ -111,7 +121,7 @@ class EnhancedDellChatbot:
     
     def process_executive_query(self, user_query: str) -> Dict[str, Any]:
         """
-        Process executive query with enhanced analysis capabilities
+        Process executive query with enhanced analysis capabilities and adaptive learning
         
         Args:
             user_query: Question from CEO/Board member
@@ -122,6 +132,28 @@ class EnhancedDellChatbot:
         try:
             self.logger.info(f"Processing executive query: {user_query}")
             
+            # Step 1: Check for learned answers first
+            learned_answer = None
+            if self.learning_system:
+                learned_answer = self.learning_system.get_learned_answer(user_query)
+                if learned_answer:
+                    self.logger.info("Using learned answer for query")
+                    return {
+                        "response": learned_answer,
+                        "confidence_score": 0.95,  # High confidence for learned answers
+                        "data_sources": 1,
+                        "database_type": "Learned Knowledge",
+                        "fiscal_year_context": "Based on learned Q&A pairs",
+                        "key_insights": ["This response is based on previously learned knowledge"],
+                        "recommendations": ["Continue learning from executive interactions"],
+                        "validation": {"learned_response": True, "overall_score": 0.95},
+                        "filters_applied": {"learned_query": True},
+                        "raw_result": {"result_type": "learned", "source": "adaptive_learning"},
+                        "timestamp": datetime.now().isoformat(),
+                        "is_learned_response": True
+                    }
+            
+            # Step 2: Proceed with normal analysis if no learned answer
             # Determine if this is a human error question
             is_he_question = self._is_human_error_question(user_query)
             
@@ -164,6 +196,9 @@ class EnhancedDellChatbot:
                 executive_response, filtered_df, result
             )
             
+            # Check for similar learned knowledge to enhance response
+            learned_context = self._get_learned_context(user_query) if self.learning_system else []
+            
             return {
                 "response": executive_response,
                 "confidence_score": confidence_score,
@@ -175,7 +210,9 @@ class EnhancedDellChatbot:
                 "validation": validation,
                 "filters_applied": filters,
                 "raw_result": result,
-                "timestamp": datetime.now().isoformat()
+                "learned_context": learned_context,
+                "timestamp": datetime.now().isoformat(),
+                "is_learned_response": False
             }
             
         except Exception as e:
@@ -561,14 +598,108 @@ Generate executive response:"""
             "timestamp": datetime.now().isoformat()
         }
     
+    def _get_learned_context(self, question: str) -> List[Dict[str, Any]]:
+        """Get relevant learned context for enhancing responses"""
+        try:
+            if not self.learning_system:
+                return []
+            
+            # Search for similar learned knowledge with lower threshold
+            similar_qa = self.learning_system.search_learned_knowledge(
+                question, n_results=3, confidence_threshold=0.5
+            )
+            
+            return similar_qa
+            
+        except Exception as e:
+            self.logger.error(f"Error getting learned context: {e}")
+            return []
+    
+    def learn_qa_pair(self, question: str, answer: str, metadata: Dict[str, Any] = None) -> bool:
+        """
+        Learn a new Q&A pair for future reference
+        
+        Args:
+            question: The question that was asked
+            answer: The answer that was provided
+            metadata: Optional metadata about the Q&A pair
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            if not self.learning_system:
+                self.logger.warning("Learning system not available")
+                return False
+            
+            qa_pair = {
+                "question": question,
+                "answer": answer,
+                "source": "executive_session",
+                "learned_via": "chatbot_interaction"
+            }
+            
+            # Add metadata if provided
+            if metadata:
+                qa_pair.update(metadata)
+            
+            success = self.learning_system.ingest_qa_json(qa_pair)
+            if success:
+                self.logger.info(f"Successfully learned new Q&A pair")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error learning Q&A pair: {e}")
+            return False
+    
+    def learn_qa_from_json(self, json_data) -> bool:
+        """
+        Learn Q&A pairs from JSON data
+        
+        Args:
+            json_data: JSON string, dict, or list containing Q&A pairs
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            if not self.learning_system:
+                self.logger.warning("Learning system not available")
+                return False
+            
+            return self.learning_system.ingest_qa_json(json_data)
+            
+        except Exception as e:
+            self.logger.error(f"Error learning from JSON: {e}")
+            return False
+    
+    def get_learning_stats(self) -> Dict[str, Any]:
+        """Get learning system statistics"""
+        if not self.learning_system:
+            return {"learning_system": "not_available"}
+        
+        return self.learning_system.get_learning_stats()
+    
+    def export_learned_knowledge(self) -> str:
+        """Export all learned knowledge as JSON"""
+        if not self.learning_system:
+            return json.dumps({"error": "Learning system not available"})
+        
+        return self.learning_system.export_learned_knowledge()
+    
     def get_system_status(self) -> Dict[str, Any]:
         """Get current system status"""
+        learning_stats = self.get_learning_stats() if self.learning_system else {}
+        
         return {
             "main_db_loaded": self.main_df is not None,
             "he_db_loaded": self.he_df is not None,
             "main_db_records": len(self.main_df) if self.main_df is not None else 0,
             "he_db_records": len(self.he_df) if self.he_df is not None else 0,
             "openai_enabled": self.use_openai,
+            "learning_system_enabled": self.learning_system is not None,
+            "learned_qa_pairs": learning_stats.get("total_learned_pairs", 0),
             "current_dell_fy": self._get_current_dell_fy(),
             "system_ready": (self.main_df is not None) or (self.he_df is not None)
         }
