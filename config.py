@@ -75,5 +75,5 @@ class ChatbotConfig:
     ]
 
 # Environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your-openai-api-key-here")
 DB_CONNECTION_STRING = os.getenv("CHROME_DB_CONNECTION", "sqlite:///dell_operations.db")
